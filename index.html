@@ -808,11 +808,19 @@ async function saveRecord() {
   };
 
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+    // GET 방식으로 전송 (CORS 오류 방지)
+    const params = new URLSearchParams({
+      action:      body.action,
+      qrId:        body.qrId,
+      location:    body.location,
+      device:      body.device,
+      temperature: body.temperature,
+      humidity:    body.humidity,
+      note:        body.note,
+      recordedAt:  body.recordedAt,
+      authTime:    body.authTime,
     });
+    const res = await fetch(`${API_URL}?${params.toString()}`);
     const data = await res.json();
 
     if (data.success) {
