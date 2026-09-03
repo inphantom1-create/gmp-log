@@ -568,7 +568,7 @@ function makeSeqBlock(seq, rec){
     const info=document.createElement("div");
     info.className="seq-info";
     info.innerHTML=`
-      <div class="si-cell"><span class="si-label">점검시간</span><span class="si-val" style="font-size:10px">${truncateDT(rec.recordedAt)}</span></div>
+      <div class="si-cell"><span class="si-label">점검시간</span><span class="si-val" style="font-size:11px;line-height:1.4">${truncateDT(rec.recordedAt).replace(' ','<br>')}</span></div>
       <div class="si-cell"><span class="si-label">온도</span><span class="si-val">${rec.temperature}℃</span></div>
       <div class="si-cell"><span class="si-label">습도</span><span class="si-val">${rec.humidity}%</span></div>
       <div class="si-cell"><span class="si-label">점검자</span><span class="si-val">${rec.inspector}</span></div>
