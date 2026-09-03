@@ -6,854 +6,627 @@
 <title>GMP 기록 시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
-  :root {
-    --blue-900: #0c2340;
-    --blue-700: #1a4a7a;
-    --blue-500: #1e6db5;
-    --blue-400: #2e86d4;
-    --blue-100: #dbeafe;
-    --blue-50:  #eff6ff;
-    --green:    #16a34a;
-    --green-bg: #f0fdf4;
-    --red:      #dc2626;
-    --red-bg:   #fef2f2;
-    --gray-700: #374151;
-    --gray-500: #6b7280;
-    --gray-300: #d1d5db;
-    --gray-100: #f3f4f6;
-    --white:    #ffffff;
-    --radius:   12px;
-    --shadow:   0 2px 12px rgba(0,0,0,0.10);
-  }
+:root{
+  --b9:#0c2340;--b7:#1a4a7a;--b5:#1e6db5;--b4:#2e86d4;--b1:#dbeafe;--b0:#eff6ff;
+  --g:#16a34a;--gbg:#f0fdf4;--r:#dc2626;--rbg:#fef2f2;
+  --t7:#374151;--t5:#6b7280;--t3:#d1d5db;--t1:#f3f4f6;--w:#ffffff;
+  --rad:12px;--shd:0 2px 12px rgba(0,0,0,.10);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--w);color:var(--t7);min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  -webkit-tap-highlight-color:transparent}
+.screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:430px;min-height:100dvh;padding:0 0 40px}
+.screen.active{display:flex}
+.app-header{width:100%;background:var(--b9);color:var(--w);padding:18px 20px 14px;text-align:center}
+.app-header .lbl{font-size:10px;letter-spacing:.12em;color:var(--b1);margin-bottom:4px}
+.app-header h1{font-size:18px;font-weight:700}
+.timer-bar{width:100%;background:var(--b9);color:var(--b1);padding:8px 20px;font-size:12px;
+  display:flex;justify-content:space-between;align-items:center}
+.timer-bar span{font-weight:600;color:var(--w);font-variant-numeric:tabular-nums}
+.card{background:var(--w);border:1px solid var(--t3);border-radius:var(--rad);padding:20px;
+  width:calc(100% - 32px);margin:16px 0 0;box-shadow:var(--shd)}
+.btn{display:block;width:calc(100% - 32px);padding:16px;border-radius:var(--rad);
+  font-size:16px;font-weight:600;border:none;cursor:pointer;transition:background .15s,transform .08s;
+  text-align:center;margin-top:12px}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--b5);color:var(--w)}.btn-primary:hover{background:var(--b4)}
+.btn-green{background:var(--g);color:var(--w)}
+.btn-secondary{background:var(--t1);color:var(--t7);border:1px solid var(--t3)}
+.btn-outline{background:transparent;color:var(--b5);border:1.5px solid var(--b5)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.lbl2{font-size:11px;font-weight:600;color:var(--t5);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.val{font-size:16px;font-weight:600;color:var(--b9)}
+.irow{margin-bottom:16px}.irow:last-child{margin-bottom:0}
+.badge-ok{display:inline-flex;align-items:center;gap:6px;background:var(--gbg);color:var(--g);
+  border:1px solid #bbf7d0;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600}
+.badge-seq{display:inline-flex;align-items:center;gap:6px;background:var(--b0);color:var(--b5);
+  border:1px solid var(--b1);border-radius:20px;padding:4px 14px;font-size:14px;font-weight:700}
+.alert{width:calc(100% - 32px);margin:12px 0 0;padding:14px 16px;border-radius:var(--rad);
+  font-size:13px;line-height:1.6;white-space:pre-line}
+.alert-info{background:var(--b0);border:1px solid var(--b1);color:var(--b7)}
+.alert-error{background:var(--rbg);border:1px solid #fecaca;color:var(--r)}
+.alert-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.alert-success{background:var(--gbg);border:1px solid #bbf7d0;color:var(--g)}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* QR 스캔 */
+.scan-hint{font-size:13px;color:var(--t5);text-align:center;padding:12px 16px 0;line-height:1.6}
+#qr-reader-wrapper{width:calc(100% - 32px);margin-top:16px;border-radius:var(--rad);overflow:hidden;
+  border:2px solid var(--b1);position:relative;background:#000;aspect-ratio:1;display:none}
+#qr-reader{width:100%!important;border:none!important;padding:0!important}
+#qr-reader video{width:100%!important;height:100%!important;object-fit:cover!important}
+#qr-reader__dashboard{display:none!important}
+.scan-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.scan-frame{width:58%;aspect-ratio:1;border:3px solid var(--b4);border-radius:8px;position:relative;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+.scan-frame::before,.scan-frame::after,.scan-frame .cbl,.scan-frame .cbr{content:'';position:absolute;
+  width:22px;height:22px;border-color:var(--b4);border-style:solid}
+.scan-frame::before{top:-3px;left:-3px;border-width:4px 0 0 4px;border-radius:4px 0 0 0}
+.scan-frame::after{top:-3px;right:-3px;border-width:4px 4px 0 0;border-radius:0 4px 0 0}
+.scan-frame .cbl{bottom:-3px;left:-3px;border-width:0 0 4px 4px;border-radius:0 0 0 4px}
+.scan-frame .cbr{bottom:-3px;right:-3px;border-width:0 4px 4px 0;border-radius:0 0 4px 0}
+@keyframes laser{0%{top:12%}50%{top:82%}100%{top:12%}}
+.laser{position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--b4),transparent);
+  animation:laser 2s ease-in-out infinite}
+.cam-btn{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;
+  border:none;border-radius:8px;padding:8px 10px;font-size:20px;cursor:pointer;z-index:10}
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo',
-                 'Noto Sans KR', sans-serif;
-    background: var(--white);
-    color: var(--gray-700);
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    -webkit-tap-highlight-color: transparent;
-  }
+/* 당일 기록 카드 */
+.today-card{background:var(--b0);border:1px solid var(--b1);border-radius:var(--rad);
+  padding:16px;width:calc(100% - 32px);margin-top:16px}
+.today-card .tc-title{font-size:12px;font-weight:700;color:var(--b5);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:12px}
+.seq-row{display:flex;align-items:stretch;gap:10px;margin-bottom:8px}
+.seq-row:last-child{margin-bottom:0}
+.seq-badge{min-width:36px;display:flex;align-items:center;justify-content:center;
+  background:var(--b5);color:#fff;font-size:12px;font-weight:700;border-radius:6px;padding:6px 4px}
+.seq-info{flex:1;background:var(--w);border:1px solid var(--t3);border-radius:8px;padding:10px 12px}
+.seq-info .si-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.seq-info .si-row:last-child{margin-bottom:0}
+.seq-info .si-label{color:var(--t5)}
+.seq-info .si-val{font-weight:600;color:var(--b9)}
+.seq-empty{flex:1;background:var(--t1);border:1px dashed var(--t3);border-radius:8px;
+  padding:10px 12px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--t5)}
 
-  .screen {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 420px;
-    min-height: 100dvh;
-    padding: 0 0 40px;
-  }
-  .screen.active { display: flex; }
+/* 폼 */
+.fg{margin-bottom:18px}
+.fl{display:block;font-size:13px;font-weight:600;color:var(--t5);margin-bottom:6px}
+.fi{width:100%;padding:13px 14px;border:1.5px solid var(--t3);border-radius:8px;
+  font-size:16px;color:var(--t7);background:var(--w);-webkit-appearance:none;transition:border-color .15s}
+.fi:focus{outline:none;border-color:var(--b5);box-shadow:0 0 0 3px var(--b1)}
+.fi[readonly]{background:var(--t1);color:var(--t5);cursor:not-allowed}
+select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;cursor:pointer}
+.uw{position:relative}.uw .fi{padding-right:44px}
+.unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--t5);font-weight:500;pointer-events:none}
 
-  .app-header {
-    width: 100%;
-    background: var(--blue-900);
-    color: var(--white);
-    padding: 18px 20px 14px;
-    text-align: center;
-  }
-  .app-header .logo-label {
-    font-size: 10px; letter-spacing: 0.12em;
-    color: var(--blue-100); margin-bottom: 4px;
-  }
-  .app-header h1 { font-size: 18px; font-weight: 700; }
-
-  /* 설정 배너 */
-  .config-banner {
-    width: 100%;
-    background: #fef3c7;
-    border-bottom: 1px solid #fde68a;
-    padding: 10px 16px;
-    font-size: 12px;
-    color: #92400e;
-    text-align: center;
-    line-height: 1.5;
-  }
-  .config-banner a { color: #b45309; font-weight: 600; }
-
-  .card {
-    background: var(--white);
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius);
-    padding: 20px;
-    width: calc(100% - 32px);
-    margin: 16px 0 0;
-    box-shadow: var(--shadow);
-  }
-
-  .btn {
-    display: block;
-    width: calc(100% - 32px);
-    padding: 16px;
-    border-radius: var(--radius);
-    font-size: 16px; font-weight: 600;
-    border: none; cursor: pointer;
-    transition: background 0.15s, transform 0.08s;
-    text-align: center; margin-top: 12px;
-  }
-  .btn:active { transform: scale(0.98); }
-  .btn-primary  { background: var(--blue-500); color: var(--white); }
-  .btn-primary:hover { background: var(--blue-400); }
-  .btn-secondary { background: var(--gray-100); color: var(--gray-700); border: 1px solid var(--gray-300); }
-  .btn-green    { background: var(--green); color: var(--white); }
-  .btn-outline  { background: transparent; color: var(--blue-500); border: 1.5px solid var(--blue-500); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .label { font-size: 11px; font-weight: 600; color: var(--gray-500); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-  .value { font-size: 16px; font-weight: 600; color: var(--blue-900); }
-  .info-row { margin-bottom: 16px; }
-  .info-row:last-child { margin-bottom: 0; }
-
-  .badge-success {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--green-bg); color: var(--green);
-    border: 1px solid #bbf7d0; border-radius: 20px;
-    padding: 4px 12px; font-size: 13px; font-weight: 600;
-  }
-
-  .timer-bar {
-    width: 100%; background: var(--blue-900); color: var(--blue-100);
-    padding: 8px 20px; font-size: 12px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .timer-bar span { font-weight: 600; color: var(--white); }
-
-  /* QR 스캔 영역 */
-  .scan-hint {
-    font-size: 13px; color: var(--gray-500);
-    text-align: center; padding: 12px 16px 0; line-height: 1.6;
-  }
-
-  #qr-reader-wrapper {
-    width: calc(100% - 32px); margin-top: 16px;
-    border-radius: var(--radius); overflow: hidden;
-    border: 2px solid var(--blue-100);
-    position: relative; background: #000;
-    aspect-ratio: 1; display: none;
-  }
-  #qr-reader { width: 100% !important; border: none !important; padding: 0 !important; }
-  #qr-reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-  #qr-reader__dashboard { display: none !important; }
-  #qr-reader__status_span { display: none !important; }
-
-  .scan-overlay {
-    position: absolute; inset: 0; pointer-events: none;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .scan-frame {
-    width: 58%; aspect-ratio: 1;
-    border: 3px solid var(--blue-400); border-radius: 8px;
-    position: relative; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-  }
-  .scan-frame::before, .scan-frame::after,
-  .scan-frame .corner-bl, .scan-frame .corner-br {
-    content: ''; position: absolute;
-    width: 22px; height: 22px;
-    border-color: var(--blue-400); border-style: solid;
-  }
-  .scan-frame::before  { top:-3px; left:-3px;  border-width:4px 0 0 4px; border-radius:4px 0 0 0; }
-  .scan-frame::after   { top:-3px; right:-3px; border-width:4px 4px 0 0; border-radius:0 4px 0 0; }
-  .scan-frame .corner-bl { bottom:-3px; left:-3px;  border-width:0 0 4px 4px; border-radius:0 0 0 4px; }
-  .scan-frame .corner-br { bottom:-3px; right:-3px; border-width:0 4px 4px 0; border-radius:0 0 4px 0; }
-
-  @keyframes scan-laser { 0%{top:12%} 50%{top:82%} 100%{top:12%} }
-  .scan-laser {
-    position: absolute; left:0; right:0; height:2px;
-    background: linear-gradient(90deg, transparent, var(--blue-400), transparent);
-    animation: scan-laser 2s ease-in-out infinite;
-  }
-
-  .cam-switch-btn {
-    position: absolute; top:10px; right:10px;
-    background: rgba(0,0,0,0.55); color:#fff;
-    border:none; border-radius:8px;
-    padding:8px 10px; font-size:20px; cursor:pointer;
-    pointer-events:all; z-index:10;
-  }
-
-  .alert {
-    width: calc(100% - 32px); margin: 12px 0 0;
-    padding: 14px 16px; border-radius: var(--radius);
-    font-size: 13px; line-height: 1.6; white-space: pre-line;
-  }
-  .alert-info  { background:var(--blue-50);  border:1px solid var(--blue-100); color:var(--blue-700); }
-  .alert-error { background:var(--red-bg);   border:1px solid #fecaca; color:var(--red); }
-  .alert-warn  { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
-  .alert-success { background:var(--green-bg); border:1px solid #bbf7d0; color:var(--green); }
-
-  /* 기록 폼 */
-  .form-group { margin-bottom: 18px; }
-  .form-label { display:block; font-size:13px; font-weight:600; color:var(--gray-500); margin-bottom:6px; }
-  .form-input {
-    width:100%; padding:13px 14px;
-    border:1.5px solid var(--gray-300); border-radius:8px;
-    font-size:16px; color:var(--gray-700); background:var(--white);
-    -webkit-appearance:none; transition:border-color 0.15s;
-  }
-  .form-input:focus { outline:none; border-color:var(--blue-500); box-shadow:0 0 0 3px var(--blue-100); }
-  .form-input[readonly] { background:var(--gray-100); color:var(--gray-500); cursor:not-allowed; }
-  .unit-wrap { position:relative; }
-  .unit-wrap .form-input { padding-right:44px; }
-  .unit { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-size:15px; color:var(--gray-500); font-weight:500; pointer-events:none; }
-
-  .result-icon { font-size:56px; text-align:center; margin:8px 0 4px; }
-  .result-title { font-size:22px; font-weight:700; text-align:center; margin-bottom:4px; }
-  .result-sub { font-size:14px; color:var(--gray-500); text-align:center; margin-bottom:16px; line-height:1.5; }
-
-  .save-done-wrap {
-    flex:1; display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    padding:32px; text-align:center;
-  }
-  .save-done-wrap h2 { font-size:22px; font-weight:700; margin:12px 0 6px; }
-  .save-done-wrap p { font-size:14px; color:var(--gray-500); line-height:1.6; }
-
-  .divider { width:calc(100% - 32px); height:1px; background:var(--gray-300); margin:4px 0; }
-
-  /* 로딩 스피너 */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner {
-    width:20px; height:20px; border:3px solid rgba(255,255,255,0.3);
-    border-top-color:#fff; border-radius:50%;
-    animation:spin 0.8s linear infinite; display:inline-block;
-    vertical-align:middle; margin-right:8px;
-  }
-
-  /* 설정 화면 */
-  .setting-input {
-    width:100%; padding:11px 12px;
-    border:1.5px solid var(--gray-300); border-radius:8px;
-    font-size:13px; font-family:monospace; color:var(--gray-700);
-    background:var(--white); margin-top:6px;
-  }
-  .setting-input:focus { outline:none; border-color:var(--blue-500); }
+/* 결과 */
+.ri{font-size:56px;text-align:center;margin:8px 0 4px}
+.rt{font-size:22px;font-weight:700;text-align:center;margin-bottom:4px}
+.rs{font-size:14px;color:var(--t5);text-align:center;margin-bottom:16px;line-height:1.5}
+.done-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px;text-align:center}
+.done-wrap h2{font-size:22px;font-weight:700;margin:12px 0 6px}
+.done-wrap p{font-size:14px;color:var(--t5);line-height:1.6}
+.sum-box{margin-top:12px;background:var(--t1);padding:12px 16px;border-radius:8px;
+  font-size:13px;color:var(--t7);line-height:1.8}
+hr.div{border:none;border-top:1px solid var(--t3);margin:12px 0 16px}
+.setting-input{width:100%;padding:11px 12px;border:1.5px solid var(--t3);border-radius:8px;
+  font-size:13px;font-family:monospace;color:var(--t7);background:var(--w);margin-top:6px}
+.setting-input:focus{outline:none;border-color:var(--b5)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;
+  border-radius:50%;animation:spin .8s linear infinite;display:inline-block;
+  vertical-align:middle;margin-right:8px}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════ 화면 0: 초기 설정 ══════════════════════ -->
-<section class="screen active" id="screen-setup">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-
-  <div class="card">
-    <div style="font-size:15px;font-weight:700;color:var(--blue-900);margin-bottom:12px">
-      ⚙️ 구글 시트 연동 설정
-    </div>
-    <p style="font-size:13px;color:var(--gray-500);line-height:1.7;margin-bottom:16px">
-      Google Apps Script 배포 후 발급된<br>
-      <strong>웹 앱 URL</strong>을 아래에 입력해주세요.
-    </p>
-
-    <div class="form-group">
-      <label class="form-label">Apps Script 웹 앱 URL</label>
-      <input class="setting-input" type="url" id="setup-url"
-        placeholder="https://script.google.com/macros/s/.../exec">
-    </div>
-
-    <div id="setup-alert" style="display:none" class="alert"></div>
+<!-- 화면1: QR 스캔 -->
+<section class="screen active" id="screen-scan">
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
+  <div class="card" style="text-align:center;padding:14px 20px">
+    <div style="font-size:13px;color:var(--t5);margin-bottom:4px">인증 방법</div>
+    <div style="font-size:16px;font-weight:700;color:var(--b9)">QR코드 스캔</div>
   </div>
-
-  <button class="btn btn-primary" onclick="saveSetup()">연결 확인 및 시작</button>
-
-  <div style="width:calc(100%-32px);padding:16px 16px 0;font-size:12px;color:var(--gray-500);line-height:1.8;text-align:center">
-    설정 방법은 <strong>README.txt</strong>를 참고하세요.
-  </div>
-</section>
-
-
-<!-- ══════════════════════ 화면 1: QR 스캔 ══════════════════════ -->
-<section class="screen" id="screen-scan">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-  <div class="config-banner" id="api-url-banner"></div>
-
-  <div class="card" style="text-align:center;padding:16px 20px">
-    <div style="font-size:13px;color:var(--gray-500);margin-bottom:4px">인증 방법</div>
-    <div style="font-size:16px;font-weight:700;color:var(--blue-900)">QR코드 스캔</div>
-  </div>
-
   <div id="qr-reader-wrapper">
     <div id="qr-reader"></div>
     <div class="scan-overlay">
-      <div class="scan-frame">
-        <span class="corner-bl"></span><span class="corner-br"></span>
-        <div class="scan-laser"></div>
-      </div>
+      <div class="scan-frame"><span class="cbl"></span><span class="cbr"></span><div class="laser"></div></div>
     </div>
-    <button class="cam-switch-btn" onclick="switchCamera()">⇄</button>
+    <button class="cam-btn" onclick="switchCamera()">⇄</button>
   </div>
-
-  <p class="scan-hint" id="scan-hint">
-    등록된 GMP QR코드를 카메라에 맞춰주세요.<br>
-    QR코드가 가이드 안에 들어오면 자동 인식됩니다.
-  </p>
-
+  <p class="scan-hint" id="scan-hint">등록된 GMP QR코드를 카메라에 맞춰주세요.<br>QR코드가 가이드 안에 들어오면 자동 인식됩니다.</p>
   <div id="scan-alert" style="display:none" class="alert"></div>
-
   <button class="btn btn-primary" id="btn-start-scan" onclick="startScan()">📷 QR코드 스캔 시작</button>
-  <button class="btn btn-secondary" id="btn-retry-perm" style="display:none" onclick="retryPermission()">다시 시도</button>
-  <button class="btn btn-outline" style="margin-top:8px" onclick="goSetup()">⚙️ API 설정 변경</button>
+  <button class="btn btn-secondary" id="btn-retry-perm" style="display:none" onclick="retryPerm()">다시 시도</button>
 </section>
 
-
-<!-- ══════════════════════ 화면 1-b: QR 확인 중 (로딩) ══════════════════════ -->
+<!-- 화면1b: 인증 확인 중 -->
 <section class="screen" id="screen-verifying">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
   <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px">
     <div style="font-size:48px">🔍</div>
-    <div style="font-size:17px;font-weight:700;color:var(--blue-900)">QR 인증 확인 중...</div>
-    <div style="font-size:13px;color:var(--gray-500)">구글 시트에서 등록 여부를 확인합니다.</div>
-    <div id="verifying-qrid" style="font-family:monospace;font-size:13px;color:var(--blue-500);background:var(--blue-50);padding:8px 16px;border-radius:8px"></div>
+    <div style="font-size:17px;font-weight:700;color:var(--b9)">QR 인증 확인 중...</div>
+    <div style="font-size:13px;color:var(--t5)">구글 시트에서 등록 여부를 확인합니다.</div>
+    <div id="verifying-qrid" style="font-family:monospace;font-size:13px;color:var(--b5);background:var(--b0);padding:8px 16px;border-radius:8px"></div>
   </div>
 </section>
 
-
-<!-- ══════════════════════ 화면 2: 인증 성공 ══════════════════════ -->
+<!-- 화면2: 인증 성공 + 당일 기록 현황 -->
 <section class="screen" id="screen-success">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-  <div class="timer-bar" id="timer-bar">
-    <span>인증 만료까지</span>
-    <span id="timer-display">30:00</span>
-  </div>
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
+  <div class="timer-bar"><span>인증 만료까지</span><span id="timer-display">30:00</span></div>
 
   <div class="card">
-    <div class="result-icon">✅</div>
-    <div class="result-title" style="color:var(--green)">인증 완료</div>
-    <div class="result-sub">QR코드 인증에 성공했습니다.</div>
-    <hr style="border:none;border-top:1px solid var(--gray-300);margin:0 0 16px">
-    <div class="info-row">
-      <div class="label">장소</div>
-      <div class="value" id="auth-location">—</div>
-    </div>
-    <div class="info-row">
-      <div class="label">설비</div>
-      <div class="value" id="auth-device" style="font-size:14px">—</div>
-    </div>
-    <div class="info-row">
-      <div class="label">QR ID</div>
-      <div class="value" id="auth-qrid" style="font-size:13px;font-family:monospace">—</div>
-    </div>
-    <div class="info-row">
-      <div class="label">인증 시각</div>
-      <div class="value" id="auth-time" style="font-size:13px">—</div>
+    <div class="ri">✅</div>
+    <div class="rt" style="color:var(--g)">인증 완료</div>
+    <div class="rs">QR코드 인증에 성공했습니다.</div>
+    <hr class="div">
+    <div class="irow"><div class="lbl2">장소</div><div class="val" id="auth-location">—</div></div>
+    <div class="irow"><div class="lbl2">설비</div><div class="val" id="auth-device" style="font-size:14px">—</div></div>
+    <div class="irow"><div class="lbl2">QR ID</div><div class="val" id="auth-qrid" style="font-size:13px;font-family:monospace">—</div></div>
+    <div class="irow"><div class="lbl2">인증 시각</div><div class="val" id="auth-time" style="font-size:13px">—</div></div>
+  </div>
+
+  <!-- 당일 기록 현황 -->
+  <div class="today-card" id="today-card">
+    <div class="tc-title">📋 오늘의 점검 현황</div>
+    <div id="today-loading" style="font-size:13px;color:var(--t5);text-align:center;padding:8px 0">조회 중...</div>
+    <div id="today-rows" style="display:none"></div>
+    <div id="seq-next-label" style="margin-top:10px;text-align:center;display:none">
+      <span class="badge-seq" id="seq-next-badge"></span>
     </div>
   </div>
 
-  <button class="btn btn-green" onclick="goRecord()">기록 시작 →</button>
+  <button class="btn btn-green" id="btn-go-record" onclick="goRecord()" style="display:none">기록 시작 →</button>
+  <div id="done-today-msg" class="alert alert-success" style="display:none;margin-top:12px">
+    ✅ 오늘 점검이 모두 완료되었습니다. (1차·2차)
+  </div>
   <button class="btn btn-outline" onclick="goScan()" style="margin-top:8px">다시 스캔</button>
 </section>
 
-
-<!-- ══════════════════════ 화면 3: 인증 실패 ══════════════════════ -->
+<!-- 화면3: 인증 실패 -->
 <section class="screen" id="screen-fail">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
   <div class="card">
-    <div class="result-icon">❌</div>
-    <div class="result-title" style="color:var(--red)">인증 실패</div>
-    <div class="result-sub" id="fail-msg">등록되지 않은 QR코드입니다.</div>
+    <div class="ri">❌</div>
+    <div class="rt" style="color:var(--r)">인증 실패</div>
+    <div class="rs" id="fail-msg">등록되지 않은 QR코드입니다.</div>
   </div>
-
   <button class="btn btn-primary" onclick="goScan()">다시 스캔</button>
 </section>
 
-
-<!-- ══════════════════════ 화면 4: 기록 입력 ══════════════════════ -->
+<!-- 화면4: 기록 입력 -->
 <section class="screen" id="screen-record">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-  <div class="timer-bar" id="timer-bar-record">
-    <span>인증 만료까지</span>
-    <span id="timer-display-record">30:00</span>
-  </div>
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
+  <div class="timer-bar"><span>인증 만료까지</span><span id="timer-display-record">30:00</span></div>
 
   <div class="card">
-    <div style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--blue-900)">GMP 온·습도 기록</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:700;color:var(--b9)">GMP 온·습도 기록</div>
+      <span class="badge-seq" id="rec-seq-badge">—차</span>
+    </div>
 
-    <div class="form-group">
-      <label class="form-label">장소</label>
-      <input class="form-input" type="text" id="rec-location" readonly>
+    <div class="fg">
+      <label class="fl">점검일</label>
+      <input class="fi" type="text" id="rec-date" readonly>
     </div>
-    <div class="form-group">
-      <label class="form-label">설비</label>
-      <input class="form-input" type="text" id="rec-device" readonly>
+    <div class="fg">
+      <label class="fl">장소</label>
+      <input class="fi" type="text" id="rec-location" readonly>
     </div>
-    <div class="form-group">
-      <label class="form-label">QR 인증</label>
+    <div class="fg">
+      <label class="fl">설비</label>
+      <input class="fi" type="text" id="rec-device" readonly>
+    </div>
+    <div class="fg">
+      <label class="fl">QR 인증</label>
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
-        <span class="badge-success">✓ 인증 완료</span>
-        <span style="font-size:12px;color:var(--gray-500);font-family:monospace" id="rec-qrid-badge"></span>
+        <span class="badge-ok">✓ 인증 완료</span>
+        <span style="font-size:12px;color:var(--t5);font-family:monospace" id="rec-qrid-badge"></span>
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">온도</label>
-      <div class="unit-wrap">
-        <input class="form-input" type="number" id="rec-temp" placeholder="온도 입력" step="0.1" inputmode="decimal">
-        <span class="unit">℃</span>
-      </div>
+    <div class="fg">
+      <label class="fl">점검자</label>
+      <select class="fi" id="rec-inspector">
+        <option value="">점검자 선택...</option>
+      </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">습도</label>
-      <div class="unit-wrap">
-        <input class="form-input" type="number" id="rec-hum" placeholder="습도 입력" step="0.1" inputmode="decimal">
-        <span class="unit">%</span>
-      </div>
+    <div class="fg">
+      <label class="fl">온도</label>
+      <div class="uw"><input class="fi" type="number" id="rec-temp" placeholder="온도 입력" step="0.1" inputmode="decimal"><span class="unit">℃</span></div>
     </div>
-    <div class="form-group" style="margin-bottom:0">
-      <label class="form-label">비고</label>
-      <textarea class="form-input" id="rec-note" rows="3" placeholder="특이사항 입력 (선택)"></textarea>
+    <div class="fg">
+      <label class="fl">습도</label>
+      <div class="uw"><input class="fi" type="number" id="rec-hum" placeholder="습도 입력" step="0.1" inputmode="decimal"><span class="unit">%</span></div>
+    </div>
+    <div class="fg" style="margin-bottom:0">
+      <label class="fl">비고</label>
+      <textarea class="fi" id="rec-note" rows="2" placeholder="특이사항 (선택)"></textarea>
     </div>
   </div>
 
   <div id="save-alert" style="display:none" class="alert"></div>
-
   <button class="btn btn-green" id="btn-save" onclick="saveRecord()">기록 저장</button>
   <button class="btn btn-outline" onclick="goScan()" style="margin-top:8px">QR 다시 스캔</button>
 </section>
 
-
-<!-- ══════════════════════ 화면 5: 저장 완료 ══════════════════════ -->
+<!-- 화면5: 저장 완료 -->
 <section class="screen" id="screen-saved">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
-  <div class="save-done-wrap">
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
+  <div class="done-wrap">
     <div style="font-size:64px">✅</div>
-    <h2>기록 저장 완료</h2>
-    <p style="margin-top:8px">구글 스프레드시트에 기록이 저장되었습니다.</p>
-    <p id="save-summary" style="margin-top:12px;background:var(--gray-100);padding:12px 16px;border-radius:8px;font-size:13px;color:var(--gray-700)"></p>
+    <h2 id="saved-title">기록 저장 완료</h2>
+    <p>구글 스프레드시트에 저장되었습니다.</p>
+    <div class="sum-box" id="save-summary"></div>
   </div>
   <button class="btn btn-primary" onclick="goScan()" style="width:calc(100% - 32px)">새 기록 입력</button>
 </section>
 
-
-<!-- ══════════════════════ 화면 6: 인증 만료 ══════════════════════ -->
+<!-- 화면6: 만료 -->
 <section class="screen" id="screen-expired">
-  <header class="app-header">
-    <div class="logo-label">PHARMACEUTICAL GMP</div>
-    <h1>GMP 기록 시스템</h1>
-  </header>
+  <header class="app-header"><div class="lbl">PHARMACEUTICAL GMP</div><h1>GMP 기록 시스템</h1></header>
   <div class="card">
-    <div class="result-icon">⏰</div>
-    <div class="result-title" style="color:var(--gray-700)">인증 만료</div>
-    <div class="result-sub">QR 인증이 만료되었습니다.<br>다시 QR코드를 스캔해주세요.</div>
+    <div class="ri">⏰</div>
+    <div class="rt" style="color:var(--t7)">인증 만료</div>
+    <div class="rs">QR 인증이 만료되었습니다.<br>다시 QR코드를 스캔해주세요.</div>
   </div>
   <button class="btn btn-primary" onclick="goScan()">QR 다시 스캔</button>
 </section>
 
-
 <script>
-/* ═══════════════════════════════════════════════════
-   설정
-═══════════════════════════════════════════════════ */
-const SESSION_DURATION_MS = 30 * 60 * 1000;
-const STORAGE_KEY_URL     = "gmp_api_url";
-const STORAGE_KEY_SESSION = "gmp_auth_session";
+/* ── 상수 ── */
+const SESSION_MS   = 30*60*1000;
+const KEY_URL      = "gmp_api_url";
+const KEY_SESSION  = "gmp_auth_session";
 
-let API_URL = "";
+/* ── 상태 ── */
+let API_URL = "https://script.google.com/macros/s/AKfycby-JgO_jr-kqCCZnko3LX5Xt9M99_9ZKZTPe02bgTdc7NWaBv3Rb0HwjVL0fCLyvrP2ig/exec";
 let isAuthenticated = false;
-let authSession = null;
+let authSession = null;   // {qrId,location,device,authTime,expireTime}
 let timerInterval = null;
 let html5QrScanner = null;
 let isScanActive = false;
-let currentFacingMode = "environment";
+let facingMode = "environment";
 let scanLocked = false;
+let nextSeq = "1차";      // 저장할 차수
 
-/* ═══════════════════════════════════════════════════
-   초기화
-═══════════════════════════════════════════════════ */
+/* ══════════════════ 초기화 ══════════════════ */
 window.addEventListener("DOMContentLoaded", () => {
-  API_URL = localStorage.getItem(STORAGE_KEY_URL) || "";
-
-  if (!API_URL) {
-    showScreen("setup");
-    return;
-  }
-
-  // 세션 복원 시도
   if (restoreSession()) {
     fillSuccessScreen();
     showScreen("success");
     startTimer();
+    loadTodayAndInspectors();
   } else {
     showScreen("scan");
-    updateApiBanner();
   }
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    if (authSession && Date.now() > authSession.expireTime) handleExpired();
-  }
+  if (document.visibilityState==="visible" && authSession && Date.now()>authSession.expireTime)
+    handleExpired();
 });
 
-/* ═══════════════════════════════════════════════════
-   설정 화면
-═══════════════════════════════════════════════════ */
+/* ══════════════════ 설정 ══════════════════ */
 function saveSetup() {
   const url = document.getElementById("setup-url").value.trim();
-  if (!url || !url.startsWith("https://script.google.com")) {
-    showAlert("setup-alert", "올바른 Apps Script URL을 입력해주세요.\nhttps://script.google.com/macros/s/.../exec 형식이어야 합니다.", "error");
-    return;
+  if (!url.startsWith("https://script.google.com")) {
+    showAlert("setup-alert","올바른 Apps Script URL을 입력해주세요.","error"); return;
   }
-
-  showAlert("setup-alert", "연결 테스트 중...", "info");
-
-  // 간단한 연결 테스트 (존재하지 않는 QR로 요청)
+  showAlert("setup-alert","연결 테스트 중...","info");
   fetch(`${url}?action=verifyQR&qrId=__TEST__`)
-    .then(r => r.json())
-    .then(data => {
-      // 응답이 오면 (success 여부 무관) 연결 성공
-      localStorage.setItem(STORAGE_KEY_URL, url);
-      API_URL = url;
-      showAlert("setup-alert", "✅ 연결 성공! QR 스캔 화면으로 이동합니다.", "success");
-      setTimeout(() => {
-        showScreen("scan");
-        updateApiBanner();
-      }, 1200);
+    .then(r=>r.json())
+    .then(()=>{
+      localStorage.setItem(KEY_URL, url); API_URL = url;
+      showAlert("setup-alert","✅ 연결 성공! QR 스캔 화면으로 이동합니다.","success");
+      setTimeout(()=>{ showScreen("scan"); }, 1200);
     })
-    .catch(() => {
-      showAlert("setup-alert",
-        "연결에 실패했습니다.\n\n① URL이 올바른지 확인\n② Apps Script가 '모든 사용자' 대상으로 배포되었는지 확인\n③ 네트워크 연결 확인",
-        "error");
-    });
+    .catch(()=>showAlert("setup-alert",
+      "연결 실패.\n① URL 확인 ② '모든 사용자' 배포 확인 ③ 네트워크 확인","error"));
 }
+function goSetup() { stopCamera(); stopTimer(); showScreen("setup"); document.getElementById("setup-url").value=API_URL; }
 
-function goSetup() {
-  stopCamera(); stopTimer();
-  document.getElementById("setup-url").value = API_URL;
-  showScreen("setup");
-}
-
-function updateApiBanner() {
-  const banner = document.getElementById("api-url-banner");
-  if (API_URL) {
-    const short = API_URL.replace("https://script.google.com/macros/s/", "").substring(0, 20) + "...";
-    banner.textContent = `구글 시트 연동 중 · ${short}`;
-    banner.style.display = "block";
-  } else {
-    banner.style.display = "none";
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   세션 관리
-═══════════════════════════════════════════════════ */
+/* ══════════════════ 세션 ══════════════════ */
 function restoreSession() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY_SESSION);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
-    if (!s || Date.now() > s.expireTime) {
-      sessionStorage.removeItem(STORAGE_KEY_SESSION); return false;
-    }
-    isAuthenticated = true; authSession = s; return true;
+    const s = JSON.parse(sessionStorage.getItem(KEY_SESSION)||"null");
+    if (!s || Date.now()>s.expireTime) { sessionStorage.removeItem(KEY_SESSION); return false; }
+    isAuthenticated=true; authSession=s; return true;
   } catch { return false; }
 }
+function saveSession(s) { try{sessionStorage.setItem(KEY_SESSION,JSON.stringify(s));}catch{} }
+function clearSession()  { isAuthenticated=false; authSession=null; try{sessionStorage.removeItem(KEY_SESSION);}catch{} stopTimer(); }
 
-function saveSession(s) {
-  try { sessionStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(s)); } catch {}
-}
-
-function clearSession() {
-  isAuthenticated = false; authSession = null;
-  try { sessionStorage.removeItem(STORAGE_KEY_SESSION); } catch {}
-  stopTimer();
-}
-
-/* ═══════════════════════════════════════════════════
-   화면 전환
-═══════════════════════════════════════════════════ */
+/* ══════════════════ 화면 ══════════════════ */
 function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById("screen-" + id).classList.add("active");
-  window.scrollTo(0, 0);
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("screen-"+id).classList.add("active");
+  window.scrollTo(0,0);
 }
 
 function goScan() {
-  stopCamera(); stopTimer(); scanLocked = false; isScanActive = false;
-  document.getElementById("qr-reader-wrapper").style.display = "none";
-  document.getElementById("btn-start-scan").style.display = "block";
-  document.getElementById("btn-retry-perm").style.display = "none";
-  document.getElementById("scan-alert").style.display = "none";
-  document.getElementById("scan-hint").textContent =
-    "등록된 GMP QR코드를 카메라에 맞춰주세요.\nQR코드가 가이드 안에 들어오면 자동 인식됩니다.";
+  stopCamera(); stopTimer(); scanLocked=false; isScanActive=false;
+  document.getElementById("qr-reader-wrapper").style.display="none";
+  document.getElementById("btn-start-scan").style.display="block";
+  document.getElementById("btn-retry-perm").style.display="none";
+  document.getElementById("scan-alert").style.display="none";
+  document.getElementById("scan-hint").textContent="등록된 GMP QR코드를 카메라에 맞춰주세요.\nQR코드가 가이드 안에 들어오면 자동 인식됩니다.";
   showScreen("scan");
 }
 
 function goRecord() {
-  if (!isAuthenticated || !authSession) { goScan(); return; }
-  if (Date.now() > authSession.expireTime) { handleExpired(); return; }
+  if (!isAuthenticated||!authSession) { goScan(); return; }
+  if (Date.now()>authSession.expireTime) { handleExpired(); return; }
+  const today = todayStr();
+  document.getElementById("rec-date").value     = today;
   document.getElementById("rec-location").value = authSession.location;
-  document.getElementById("rec-device").value   = authSession.device || "";
+  document.getElementById("rec-device").value   = authSession.device||"";
   document.getElementById("rec-qrid-badge").textContent = authSession.qrId;
-  document.getElementById("rec-temp").value = "";
-  document.getElementById("rec-hum").value  = "";
-  document.getElementById("rec-note").value = "";
-  document.getElementById("save-alert").style.display = "none";
+  document.getElementById("rec-seq-badge").textContent  = nextSeq;
+  document.getElementById("rec-temp").value="";
+  document.getElementById("rec-hum").value="";
+  document.getElementById("rec-note").value="";
+  document.getElementById("rec-inspector").value="";
+  document.getElementById("save-alert").style.display="none";
+  const btn=document.getElementById("btn-save");
+  btn.disabled=false; btn.textContent="기록 저장";
   showScreen("record");
 }
 
-/* ═══════════════════════════════════════════════════
-   타이머
-═══════════════════════════════════════════════════ */
+/* ══════════════════ 타이머 ══════════════════ */
 function startTimer() {
   stopTimer(); updateTimerUI();
-  timerInterval = setInterval(() => {
-    if (!authSession) { stopTimer(); return; }
-    if (Date.now() > authSession.expireTime) { handleExpired(); }
-    else { updateTimerUI(); }
-  }, 1000);
+  timerInterval=setInterval(()=>{
+    if (!authSession){stopTimer();return;}
+    if (Date.now()>authSession.expireTime) handleExpired();
+    else updateTimerUI();
+  },1000);
 }
-
-function stopTimer() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-}
-
-function updateTimerUI() {
+function stopTimer(){ if(timerInterval){clearInterval(timerInterval);timerInterval=null;} }
+function updateTimerUI(){
   if (!authSession) return;
-  const ms = authSession.expireTime - Date.now();
-  if (ms <= 0) return;
-  const text = `${pad(Math.floor(ms/60000))}:${pad(Math.floor((ms%60000)/1000))}`;
-  ["timer-display","timer-display-record"].forEach(id => {
-    const el = document.getElementById(id); if (el) el.textContent = text;
-  });
+  const ms=authSession.expireTime-Date.now(); if(ms<=0) return;
+  const t=`${pad(Math.floor(ms/60000))}:${pad(Math.floor((ms%60000)/1000))}`;
+  ["timer-display","timer-display-record"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=t; });
 }
+function handleExpired(){ stopTimer(); clearSession(); stopCamera(); showScreen("expired"); }
 
-function handleExpired() {
-  stopTimer(); clearSession(); stopCamera(); showScreen("expired");
-}
-
-/* ═══════════════════════════════════════════════════
-   QR 스캔
-═══════════════════════════════════════════════════ */
-async function startScan() {
-  if (!API_URL) { goSetup(); return; }
-  document.getElementById("btn-start-scan").style.display = "none";
-  document.getElementById("scan-alert").style.display = "none";
-  showAlert("scan-alert", "카메라 권한을 요청하고 있습니다…", "info");
-
-  if (!navigator.mediaDevices?.getUserMedia) {
-    showAlert("scan-alert", "이 브라우저는 카메라를 지원하지 않습니다.\nChrome 또는 Safari 최신 버전을 사용해주세요.", "error");
-    showRetryBtn(); return;
+/* ══════════════════ QR 스캔 ══════════════════ */
+async function startScan(){
+  if (!API_URL){goSetup();return;}
+  document.getElementById("btn-start-scan").style.display="none";
+  document.getElementById("scan-alert").style.display="none";
+  showAlert("scan-alert","카메라 권한을 요청하고 있습니다…","info");
+  if (!navigator.mediaDevices?.getUserMedia){
+    showAlert("scan-alert","이 브라우저는 카메라를 지원하지 않습니다.","error"); showRetryBtn(); return;
   }
-  if (typeof Html5Qrcode === "undefined") {
-    showAlert("scan-alert", "QR 라이브러리를 불러올 수 없습니다.\n새로고침 후 다시 시도해주세요.", "error");
-    document.getElementById("btn-start-scan").style.display = "block"; return;
+  if (typeof Html5Qrcode==="undefined"){
+    showAlert("scan-alert","QR 라이브러리를 불러올 수 없습니다. 새로고침해주세요.","error");
+    document.getElementById("btn-start-scan").style.display="block"; return;
   }
-
   await stopCamera();
-
   try {
-    document.getElementById("qr-reader-wrapper").style.display = "block";
-    document.getElementById("scan-alert").style.display = "none";
-    document.getElementById("scan-hint").textContent = "QR코드를 가이드 안에 맞춰주세요.";
-    html5QrScanner = new Html5Qrcode("qr-reader", { verbose: false });
-    scanLocked = false; isScanActive = true;
-
-    await html5QrScanner.start(
-      { facingMode: currentFacingMode },
-      { fps: 15, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0 },
-      onQrSuccess, () => {}
-    );
-  } catch (err) {
-    isScanActive = false;
-    document.getElementById("qr-reader-wrapper").style.display = "none";
-    handleCameraError(err);
+    document.getElementById("qr-reader-wrapper").style.display="block";
+    document.getElementById("scan-alert").style.display="none";
+    document.getElementById("scan-hint").textContent="QR코드를 가이드 안에 맞춰주세요.";
+    html5QrScanner=new Html5Qrcode("qr-reader",{verbose:false});
+    scanLocked=false; isScanActive=true;
+    await html5QrScanner.start({facingMode},{fps:15,qrbox:{width:230,height:230},aspectRatio:1.0},onQrOk,()=>{});
+  } catch(err){
+    isScanActive=false;
+    document.getElementById("qr-reader-wrapper").style.display="none";
+    handleCamErr(err);
   }
 }
 
-function onQrSuccess(raw) {
-  if (scanLocked) return;
-  scanLocked = true; isScanActive = false;
-  stopCamera().then(() => verifyWithSheet(raw.trim()));
+function onQrOk(raw){
+  if(scanLocked) return; scanLocked=true; isScanActive=false;
+  stopCamera().then(()=>verifyWithSheet(raw.trim()));
 }
 
-async function stopCamera() {
-  if (html5QrScanner) {
-    try { if (html5QrScanner.isScanning) await html5QrScanner.stop(); html5QrScanner.clear(); } catch {}
-    html5QrScanner = null;
+async function stopCamera(){
+  if(html5QrScanner){
+    try{ if(html5QrScanner.isScanning) await html5QrScanner.stop(); html5QrScanner.clear(); }catch{}
+    html5QrScanner=null;
   }
 }
 
-async function switchCamera() {
-  currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+async function switchCamera(){
+  facingMode=facingMode==="environment"?"user":"environment";
   await stopCamera(); await startScan();
 }
 
-function retryPermission() {
-  document.getElementById("btn-retry-perm").style.display = "none";
-  document.getElementById("scan-alert").style.display = "none";
-  startScan();
-}
+function retryPerm(){ document.getElementById("btn-retry-perm").style.display="none"; document.getElementById("scan-alert").style.display="none"; startScan(); }
+function showRetryBtn(){ document.getElementById("btn-retry-perm").style.display="block"; }
 
-function handleCameraError(err) {
-  const msg = String(err?.message || err).toLowerCase();
-  if (msg.includes("permission") || msg.includes("denied") || msg.includes("notallowed")) {
-    showAlert("scan-alert", "카메라 권한이 거부되었습니다.\n브라우저 설정에서 카메라 권한을 허용한 후 다시 시도해주세요.", "error");
-    showRetryBtn();
-  } else if (msg.includes("notfound") || msg.includes("devicenotfound")) {
-    showAlert("scan-alert", "카메라를 찾을 수 없습니다.", "error");
-    document.getElementById("btn-start-scan").style.display = "block";
+function handleCamErr(err){
+  const msg=String(err?.message||err).toLowerCase();
+  if(msg.includes("permission")||msg.includes("denied")||msg.includes("notallowed")){
+    showAlert("scan-alert","카메라 권한이 거부되었습니다.\n브라우저 설정에서 카메라 권한을 허용한 후 다시 시도해주세요.","error"); showRetryBtn();
+  } else if(msg.includes("notfound")){
+    showAlert("scan-alert","카메라를 찾을 수 없습니다.","error"); document.getElementById("btn-start-scan").style.display="block";
   } else {
-    showAlert("scan-alert", `카메라를 시작할 수 없습니다.\n(${err?.message || err})`, "error");
-    document.getElementById("btn-start-scan").style.display = "block";
+    showAlert("scan-alert",`카메라를 시작할 수 없습니다.\n(${err?.message||err})`, "error"); document.getElementById("btn-start-scan").style.display="block";
   }
 }
 
-function showRetryBtn() {
-  document.getElementById("btn-retry-perm").style.display = "block";
-}
-
-/* ═══════════════════════════════════════════════════
-   구글 시트 API 연동
-═══════════════════════════════════════════════════ */
-async function verifyWithSheet(raw) {
-  let qrId = raw;
-  try { const p = JSON.parse(raw); if (p.qr_id) qrId = p.qr_id; } catch {}
-
-  // 확인 중 화면
-  document.getElementById("verifying-qrid").textContent = qrId;
+/* ══════════════════ 구글 시트 API ══════════════════ */
+async function verifyWithSheet(raw){
+  let qrId=raw;
+  try{ const p=JSON.parse(raw); if(p.qr_id) qrId=p.qr_id; }catch{}
+  document.getElementById("verifying-qrid").textContent=qrId;
   showScreen("verifying");
-
-  try {
-    const res = await fetch(`${API_URL}?action=verifyQR&qrId=${encodeURIComponent(qrId)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    if (data.success) {
-      // 인증 성공
-      const now = Date.now();
-      authSession = {
-        qrId:       data.qrId,
-        location:   data.location,
-        device:     data.device,
-        authTime:   now,
-        expireTime: now + SESSION_DURATION_MS,
-      };
-      isAuthenticated = true;
-      saveSession(authSession);
+  try{
+    const res=await fetch(`${API_URL}?action=verifyQR&qrId=${encodeURIComponent(qrId)}`);
+    const data=await res.json();
+    if(data.success){
+      const now=Date.now();
+      authSession={qrId:data.qrId,location:data.location,device:data.device,authTime:now,expireTime:now+SESSION_MS};
+      isAuthenticated=true; saveSession(authSession);
       fillSuccessScreen();
       showScreen("success");
       startTimer();
+      loadTodayAndInspectors();
     } else {
-      document.getElementById("fail-msg").textContent =
-        data.error || "등록되지 않은 QR코드입니다.\n등록된 GMP QR코드만 사용할 수 있습니다.";
+      document.getElementById("fail-msg").textContent=data.error||"등록되지 않은 QR코드입니다.";
       showScreen("fail");
     }
-  } catch (err) {
-    document.getElementById("fail-msg").innerHTML =
-      `서버 통신 오류가 발생했습니다.<br><small style="color:var(--gray-500)">${err.message}</small><br><br>API URL 설정을 확인해주세요.`;
+  } catch(err){
+    document.getElementById("fail-msg").textContent=`서버 오류: ${err.message}\nAPI URL 설정을 확인해주세요.`;
     showScreen("fail");
   }
 }
 
-function fillSuccessScreen() {
-  document.getElementById("auth-location").textContent = authSession.location;
-  document.getElementById("auth-device").textContent   = authSession.device || "—";
-  document.getElementById("auth-qrid").textContent     = authSession.qrId;
-  document.getElementById("auth-time").textContent     = formatDateTime(authSession.authTime);
+function fillSuccessScreen(){
+  document.getElementById("auth-location").textContent=authSession.location;
+  document.getElementById("auth-device").textContent=authSession.device||"—";
+  document.getElementById("auth-qrid").textContent=authSession.qrId;
+  document.getElementById("auth-time").textContent=formatDT(authSession.authTime);
 }
 
-/* ═══════════════════════════════════════════════════
-   기록 저장 → 구글 시트
-═══════════════════════════════════════════════════ */
-async function saveRecord() {
-  if (!isAuthenticated || !authSession) { alert("인증이 만료되었습니다."); goScan(); return; }
-  if (Date.now() > authSession.expireTime) { handleExpired(); return; }
+/* ── 당일 기록 + 점검자 동시 로드 ── */
+async function loadTodayAndInspectors(){
+  const today=todayStr();
+  // 로딩 상태 초기화
+  document.getElementById("today-loading").style.display="block";
+  document.getElementById("today-rows").style.display="none";
+  document.getElementById("seq-next-label").style.display="none";
+  document.getElementById("btn-go-record").style.display="none";
+  document.getElementById("done-today-msg").style.display="none";
 
-  const temp = document.getElementById("rec-temp").value.trim();
-  const hum  = document.getElementById("rec-hum").value.trim();
-  if (!temp) { alert("온도를 입력해주세요."); document.getElementById("rec-temp").focus(); return; }
-  if (!hum)  { alert("습도를 입력해주세요."); document.getElementById("rec-hum").focus();  return; }
+  try{
+    const [todayRes, inspRes] = await Promise.all([
+      fetch(`${API_URL}?action=getTodayRecord&qrId=${encodeURIComponent(authSession.qrId)}&date=${today}`).then(r=>r.json()),
+      fetch(`${API_URL}?action=getInspectors`).then(r=>r.json()),
+    ]);
 
-  const btn = document.getElementById("btn-save");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>저장 중...';
-  showAlert("save-alert", "구글 시트에 저장 중입니다...", "info");
-
-  const body = {
-    action:      "saveRecord",
-    qrId:        authSession.qrId,
-    location:    authSession.location,
-    device:      authSession.device || "",
-    temperature: temp,
-    humidity:    hum,
-    note:        document.getElementById("rec-note").value.trim(),
-    recordedAt:  formatDateTime(Date.now()),
-    authTime:    formatDateTime(authSession.authTime),
-  };
-
-  try {
-    // GET 방식으로 전송 (CORS 오류 방지)
-    const params = new URLSearchParams({
-      action:      body.action,
-      qrId:        body.qrId,
-      location:    body.location,
-      device:      body.device,
-      temperature: body.temperature,
-      humidity:    body.humidity,
-      note:        body.note,
-      recordedAt:  body.recordedAt,
-      authTime:    body.authTime,
-    });
-    const res = await fetch(`${API_URL}?${params.toString()}`);
-    const data = await res.json();
-
-    if (data.success) {
-      document.getElementById("save-summary").innerHTML =
-        `장소: <strong>${body.location}</strong><br>` +
-        `온도: <strong>${body.temperature}℃</strong> &nbsp;|&nbsp; 습도: <strong>${body.humidity}%</strong><br>` +
-        `기록 시각: ${body.recordedAt}`;
-      clearSession();
-      showScreen("saved");
-    } else {
-      showAlert("save-alert", `저장 실패: ${data.error || "알 수 없는 오류"}`, "error");
-      btn.disabled = false; btn.textContent = "기록 저장";
+    // 점검자 드롭다운 채우기
+    if(inspRes.success && inspRes.inspectors.length>0){
+      const sel=document.getElementById("rec-inspector");
+      sel.innerHTML='<option value="">점검자 선택...</option>';
+      inspRes.inspectors.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o); });
     }
-  } catch (err) {
-    showAlert("save-alert", `통신 오류: ${err.message}\n잠시 후 다시 시도해주세요.`, "error");
-    btn.disabled = false; btn.textContent = "기록 저장";
+
+    // 당일 기록 표시
+    document.getElementById("today-loading").style.display="none";
+    if(todayRes.success){
+      renderTodayRows(todayRes.records);
+    }
+  } catch(err){
+    document.getElementById("today-loading").textContent="조회 실패: "+err.message;
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   유틸
-═══════════════════════════════════════════════════ */
-function formatDateTime(ts) {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function pad(n) { return String(n).padStart(2, "0"); }
+function renderTodayRows(records){
+  const container=document.getElementById("today-rows");
+  container.innerHTML="";
+  container.style.display="block";
 
-function showAlert(id, msg, type) {
-  const el = document.getElementById(id);
-  el.className = `alert alert-${type}`;
-  el.textContent = msg;
-  el.style.display = "block";
+  const r1=records.find(r=>r.seq==="1차");
+  const r2=records.find(r=>r.seq==="2차");
+
+  // 1차 행
+  container.appendChild(makeSeqRow("1차",r1));
+  // 2차 행
+  container.appendChild(makeSeqRow("2차",r2));
+
+  // 다음 차수 결정 및 버튼
+  const seqLabel=document.getElementById("seq-next-label");
+  const badge=document.getElementById("seq-next-badge");
+  const goBtn=document.getElementById("btn-go-record");
+  const doneMsg=document.getElementById("done-today-msg");
+
+  if(!r1){
+    nextSeq="1차"; badge.textContent="1차 기록 입력"; seqLabel.style.display="block"; goBtn.style.display="block";
+  } else if(!r2){
+    nextSeq="2차"; badge.textContent="2차 기록 입력"; seqLabel.style.display="block"; goBtn.style.display="block";
+  } else {
+    seqLabel.style.display="none"; goBtn.style.display="none"; doneMsg.style.display="block";
+  }
+}
+
+function makeSeqRow(seq, rec){
+  const wrap=document.createElement("div");
+  wrap.className="seq-row";
+  const badge=document.createElement("div");
+  badge.className="seq-badge"; badge.textContent=seq;
+  wrap.appendChild(badge);
+
+  if(rec){
+    const info=document.createElement("div");
+    info.className="seq-info";
+    info.innerHTML=`
+      <div class="si-row"><span class="si-label">온도</span><span class="si-val">${rec.temperature}℃</span></div>
+      <div class="si-row"><span class="si-label">습도</span><span class="si-val">${rec.humidity}%</span></div>
+      <div class="si-row"><span class="si-label">점검자</span><span class="si-val">${rec.inspector}</span></div>
+      <div class="si-row"><span class="si-label">시각</span><span class="si-val" style="font-size:11px">${rec.recordedAt||"—"}</span></div>
+    `;
+    wrap.appendChild(info);
+  } else {
+    const empty=document.createElement("div");
+    empty.className="seq-empty"; empty.textContent="미기록";
+    wrap.appendChild(empty);
+  }
+  return wrap;
+}
+
+/* ── 기록 저장 ── */
+async function saveRecord(){
+  if(!isAuthenticated||!authSession){alert("인증이 만료되었습니다."); goScan(); return;}
+  if(Date.now()>authSession.expireTime){handleExpired();return;}
+
+  const inspector=document.getElementById("rec-inspector").value.trim();
+  const temp=document.getElementById("rec-temp").value.trim();
+  const hum=document.getElementById("rec-hum").value.trim();
+  if(!inspector){alert("점검자를 선택해주세요."); document.getElementById("rec-inspector").focus(); return;}
+  if(!temp){alert("온도를 입력해주세요."); document.getElementById("rec-temp").focus(); return;}
+  if(!hum){alert("습도를 입력해주세요."); document.getElementById("rec-hum").focus(); return;}
+
+  const btn=document.getElementById("btn-save");
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>저장 중...';
+  showAlert("save-alert","구글 시트에 저장 중입니다...","info");
+
+  const now=formatDT(Date.now());
+  const params=new URLSearchParams({
+    action:"saveRecord",
+    qrId:authSession.qrId, location:authSession.location, device:authSession.device||"",
+    temperature:temp, humidity:hum, inspector,
+    note:document.getElementById("rec-note").value.trim(),
+    date:todayStr(), recordedAt:now, authTime:formatDT(authSession.authTime),
+  });
+
+  try{
+    const res=await fetch(`${API_URL}?${params.toString()}`);
+    const data=await res.json();
+    if(data.success){
+      document.getElementById("saved-title").textContent=`${data.seq} 기록 저장 완료`;
+      document.getElementById("save-summary").innerHTML=
+        `차수: <strong>${data.seq}</strong><br>장소: <strong>${authSession.location}</strong><br>`+
+        `온도: <strong>${temp}℃</strong> &nbsp;|&nbsp; 습도: <strong>${hum}%</strong><br>`+
+        `점검자: <strong>${inspector}</strong><br>저장 시각: ${now}`;
+      clearSession();
+      showScreen("saved");
+    } else {
+      showAlert("save-alert",`저장 실패: ${data.error||"알 수 없는 오류"}`, "error");
+      btn.disabled=false; btn.textContent="기록 저장";
+    }
+  } catch(err){
+    showAlert("save-alert",`통신 오류: ${err.message}`, "error");
+    btn.disabled=false; btn.textContent="기록 저장";
+  }
+}
+
+/* ── 유틸 ── */
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function formatDT(ts){ const d=new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function pad(n){ return String(n).padStart(2,"0"); }
+function showAlert(id,msg,type){
+  const el=document.getElementById(id);
+  el.className=`alert alert-${type}`; el.textContent=msg; el.style.display="block";
 }
 </script>
 </body>
