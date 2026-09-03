@@ -463,8 +463,10 @@ async function verifyWithSheet(raw){
   document.getElementById("verifying-qrid").textContent=qrId;
   showScreen("verifying");
   try{
-    const res=await fetch(`${API_URL}?action=verifyQR&qrId=${encodeURIComponent(qrId)}`);
-    const data=await res.json();
+    const res=await fetch(`${API_URL}?action=verifyQR&qrId=${encodeURIComponent(qrId)}`,{redirect:"follow"});
+    const text=await res.text();
+    let data;
+    try{ data=JSON.parse(text); }catch(pe){ throw new Error("응답 파싱 오류: "+text.substring(0,100)); }
     if(data.success){
       const now=Date.now();
       authSession={qrId:data.qrId,location:data.location,device:data.device,authTime:now,expireTime:now+SESSION_MS};
@@ -502,8 +504,8 @@ async function loadTodayAndInspectors(){
 
   try{
     const [todayRes, inspRes] = await Promise.all([
-      fetch(`${API_URL}?action=getTodayRecord&qrId=${encodeURIComponent(authSession.qrId)}&date=${today}`).then(r=>r.json()),
-      fetch(`${API_URL}?action=getInspectors`).then(r=>r.json()),
+      fetch(`${API_URL}?action=getTodayRecord&qrId=${encodeURIComponent(authSession.qrId)}&date=${today}`,{redirect:"follow"}).then(r=>r.text()).then(t=>JSON.parse(t)),
+      fetch(`${API_URL}?action=getInspectors`,{redirect:"follow"}).then(r=>r.text()).then(t=>JSON.parse(t)),
     ]);
 
     // 점검자 드롭다운 채우기
@@ -608,8 +610,10 @@ async function saveRecord(){
   });
 
   try{
-    const res=await fetch(`${API_URL}?${params.toString()}`);
-    const data=await res.json();
+    const res=await fetch(`${API_URL}?${params.toString()}`,{redirect:"follow"});
+    const text=await res.text();
+    let data;
+    try{ data=JSON.parse(text); }catch(pe){ throw new Error("응답 파싱 오류: "+text.substring(0,100)); }
     if(data.success){
       document.getElementById("saved-title").textContent=`${data.seq} 기록 저장 완료`;
       document.getElementById("save-summary").innerHTML=
